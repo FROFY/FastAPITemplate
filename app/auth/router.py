@@ -5,7 +5,7 @@ from app.auth.models import User
 from app.exceptions import UserAlreadyExistsException, IncorrectEmailOrPasswordException
 from app.auth.auth import authenticate_user, create_access_token
 from app.auth.dao import UsersDAO
-from app.auth.schemas import SUserRegister, SUserAuth, EmailModel, SUserAddDB, SUserInfo
+from app.auth.schemas import SUserRegister, SUserAuth, EmailModel, SUserAddDB, SUserInfo, CustomUser
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dao.session_maker import TransactionSessionDep, SessionDep
@@ -49,3 +49,9 @@ async def get_me(user_data: User = Depends(get_current_user)) -> SUserInfo:
 async def get_all_users(session: AsyncSession = SessionDep,
                         user_data: User = Depends(get_current_admin_user)) -> List[SUserInfo]:
     return await UsersDAO.find_all(session=session, filters=None)
+
+
+@router.get("/get_custom/")
+async def get_custom(session: AsyncSession = SessionDep) -> list[SUserInfo]:
+    result = await UsersDAO.get_users_custom(session=session)
+    return result

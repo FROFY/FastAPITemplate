@@ -2,7 +2,7 @@ from typing import List, Any, TypeVar, Generic
 from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import select
-from sqlalchemy import update as sqlalchemy_update, delete as sqlalchemy_delete, func
+from sqlalchemy import update as sqlalchemy_update, delete as sqlalchemy_delete, func, text
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from .database import Base
@@ -19,7 +19,7 @@ class BaseDAO(Generic[T]):
         # Найти запись по ID
         logger.info(f"Поиск {cls.model.__name__} с ID: {data_id}")
         try:
-            query = select(cls.model).filter_by(id=data_id)
+            query = select(cls.model).filter_by(row_id=data_id)
             result = await session.execute(query)
             record = result.scalar_one_or_none()
             if record:
@@ -146,7 +146,7 @@ class BaseDAO(Generic[T]):
         filter_dict = filters.model_dump(exclude_unset=True)
         logger.info(f"Подсчет количества записей {cls.model.__name__} по фильтру: {filter_dict}")
         try:
-            query = select(func.count(cls.model.id)).filter_by(**filter_dict)
+            query = select(func.count(cls.model.row_id)).filter_by(**filter_dict)
             result = await session.execute(query)
             count = result.scalar()
             logger.info(f"Найдено {count} записей.")
@@ -176,7 +176,7 @@ class BaseDAO(Generic[T]):
         """Найти несколько записей по списку ID"""
         logger.info(f"Поиск записей {cls.model.__name__} по списку ID: {ids}")
         try:
-            query = select(cls.model).filter(cls.model.id.in_(ids))
+            query = select(cls.model).filter(cls.model.row_id.in_(ids))
             result = await session.execute(query)
             records = result.scalars().all()
             logger.info(f"Найдено {len(records)} записей по списку ID.")
@@ -224,10 +224,10 @@ class BaseDAO(Generic[T]):
                 if 'id' not in record_dict:
                     continue
 
-                update_data = {k: v for k, v in record_dict.items() if k != 'id'}
+                update_data = {k: v for k, v in record_dict.items() if k != 'row_id'}
                 stmt = (
                     sqlalchemy_update(cls.model)
-                    .filter_by(id=record_dict['id'])
+                    .filter_by(row_id=record_dict['row_id'])
                     .values(**update_data)
                 )
                 result = await session.execute(stmt)
@@ -240,3 +240,23 @@ class BaseDAO(Generic[T]):
             await session.rollback()
             logger.error(f"Ошибка при массовом обновлении: {e}")
             raise
+
+    @classmethod
+    async def select_raw(cls, session: AsyncSession):
+        """
+        Метод для выполнения 'сырых' SQL запросов.
+        Возвращает одну строку с несколькими колонками
+        """
+        query = text('select min(row_id) id_max, max(row_id) id_min from users')
+        result = await session.execute(query)
+        return result.fetchone()
+
+    @classmethod
+    async def select_raw_many_rows(cls, session: AsyncSession):
+        """
+        Метод для выполнения 'сырых' SQL запросов.
+        Возвращает несколько строк
+        """
+        query = text('select min(row_id) id_max, max(row_id) id_min from users')
+        result = await session.execute(query)
+        return result.all()

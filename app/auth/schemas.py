@@ -14,11 +14,11 @@ class UserBase(EmailModel):
     first_name: str = Field(min_length=3, max_length=50, description="Имя, от 3 до 50 символов")
     last_name: str = Field(min_length=3, max_length=50, description="Фамилия, от 3 до 50 символов")
 
-    @field_validator("phone_number")
-    def validate_phone_number(cls, value: str) -> str:
-        if not re.match(r'^\+\d{5,15}$', value):
-            raise ValueError('Номер телефона должен начинаться с "+" и содержать от 5 до 15 цифр')
-        return value
+    # @field_validator("phone_number")
+    # def validate_phone_number(cls, value: str) -> str:
+    #     if not re.match(r'^\+\d{5,15}$', value):
+    #         raise ValueError('Номер телефона должен начинаться с "+" и содержать от 5 до 15 цифр')
+    #     return value
 
 
 class SUserRegister(UserBase):
@@ -42,19 +42,32 @@ class SUserAuth(EmailModel):
 
 
 class RoleModel(BaseModel):
-    id: int = Field(description="Идентификатор роли")
+    row_id: int = Field(description="Идентификатор роли")
     name: str = Field(description="Название роли")
     model_config = ConfigDict(from_attributes=True)
 
 
 class SUserInfo(UserBase):
-    id: int = Field(description="Идентификатор пользователя")
+    row_id: int = Field(description="Идентификатор пользователя")
     role: RoleModel = Field(exclude=True)
+    old_role: RoleModel = Field(exclude=True)
+    # Field(exclude=True) - Это поле не будет в json. Применять для @computed_field
 
     @computed_field
-    def role_name(self) -> str:
+    def current_role(self) -> str:
         return self.role.name
 
     @computed_field
-    def role_id(self) -> int:
-        return self.role.id
+    def previous_role(self) -> str:
+        return self.old_role.name
+
+
+class CustomUser(BaseModel):
+    row_id: int = Field(description='Айди поле')
+    id_max: int = Field(description='Айди поле')
+
+    @computed_field
+    def id_custom(self) -> str:
+        return f'ID: {self.row_id}, ID_MAX: {self.id_max}'
+
+    model_config = ConfigDict(from_attributes=True)

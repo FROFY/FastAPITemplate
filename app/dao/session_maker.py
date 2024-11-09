@@ -27,7 +27,7 @@ class DatabaseSessionManager:
             try:
                 yield session
             except Exception as e:
-                logger.error(f"Ошибка при создании сессии базы данных: {e}")
+                logger.error(f"Ошибка при выполнении запроса: {e}")
                 raise
             finally:
                 await session.close()
